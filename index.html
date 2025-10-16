@@ -1,0 +1,1230 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/L.Control.Locate.min.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/leaflet-search.css">
+        <link rel="stylesheet" href="css/leaflet.photon.css">
+        <link rel="stylesheet" href="css/leaflet-measure.css">
+        <style>
+        html, body, #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        </style>
+        <title>Peta Keletakan Cagar Budaya dan ODCB Wilayah Sulawesi Utara dan Gorontalo</title>
+    </head>
+    <body>
+        <div id="map">
+        </div>
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/L.Control.Locate.min.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="js/leaflet.photon.js"></script>
+        <script src="js/leaflet-measure.js"></script>
+        <script src="js/leaflet-search.js"></script>
+        <script src="data/SearchCBdanODCBSulutgoTerbaru_0.js"></script>
+        <script src="data/AdministrasiKabupatenKotaSulawesiUtara_3.js"></script>
+        <script src="data/TitikLokasiCagarBudayadanODCBSulawesiUtara_4.js"></script>
+        <script src="data/ProvinsiGorontalo_5.js"></script>
+        <script src="data/TitikLokasiCagarBudayadanODCBGorontalo_6.js"></script>
+        <script>
+        var highlightLayer;
+        function highlightFeature(e) {
+            highlightLayer = e.target;
+
+            if (e.target.feature.geometry.type === 'LineString' || e.target.feature.geometry.type === 'MultiLineString') {
+              highlightLayer.setStyle({
+                color: '#ffff00',
+              });
+            } else {
+              highlightLayer.setStyle({
+                fillColor: '#ffff00',
+                fillOpacity: 1
+              });
+            }
+            highlightLayer.openPopup();
+        }
+        var map = L.map('map', {
+            zoomControl:false, maxZoom:28, minZoom:1
+        }).fitBounds([[0.8076425379440948,123.88912495180202],[2.19211727696909,126.48394813715095]]);
+        var hash = new L.Hash(map);
+        map.attributionControl.setPrefix('<a href="https://github.com/tomchadwin/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+        // remove popup's row if "visible-with-data"
+        function removeEmptyRowsFromPopupContent(content, feature) {
+         var tempDiv = document.createElement('div');
+         tempDiv.innerHTML = content;
+         var rows = tempDiv.querySelectorAll('tr');
+         for (var i = 0; i < rows.length; i++) {
+             var td = rows[i].querySelector('td.visible-with-data');
+             var key = td ? td.id : '';
+             if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                 rows[i].parentNode.removeChild(rows[i]);
+             }
+         }
+         return tempDiv.innerHTML;
+        }
+        // modify popup if contains media
+        function addClassToPopupIfMedia(content, popup) {
+            var tempDiv = document.createElement('div');
+            tempDiv.innerHTML = content;
+            var imgTd = tempDiv.querySelector('td img');
+            if (imgTd) {
+                var src = imgTd.getAttribute('src');
+                if (/\.(jpg|jpeg|png|gif|bmp|webp|avif)$/i.test(src)) {
+                    popup._contentNode.classList.add('media');
+                    setTimeout(function() {
+                        popup.update();
+                    }, 10);
+                } else if (/\.(mp3|wav|ogg|aac)$/i.test(src)) {
+                    var audio = document.createElement('audio');
+                    audio.controls = true;
+                    audio.src = src;
+                    imgTd.parentNode.replaceChild(audio, imgTd);
+                    popup._contentNode.classList.add('media');
+                    setTimeout(function() {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else if (/\.(mp4|webm|ogg|mov)$/i.test(src)) {
+                    var video = document.createElement('video');
+                    video.controls = true;
+                    video.src = src;
+                    video.style.width = "400px";
+                    video.style.height = "300px";
+                    video.style.maxHeight = "60vh";
+                    video.style.maxWidth = "60vw";
+                    imgTd.parentNode.replaceChild(video, imgTd);
+                    popup._contentNode.classList.add('media');
+                    // Aggiorna il popup quando il video carica i metadati
+                    video.addEventListener('loadedmetadata', function() {
+                        popup.update();
+                    });
+                    setTimeout(function() {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else {
+                    popup._contentNode.classList.remove('media');
+                }
+            } else {
+                popup._contentNode.classList.remove('media');
+            }
+        }
+        var title = new L.Control({'position':'topright'});
+        title.onAdd = function (map) {
+            this._div = L.DomUtil.create('div', 'info');
+            this.update();
+            return this._div;
+        };
+        title.update = function () {
+            this._div.innerHTML = '<h2>Peta Keletakan Cagar Budaya dan ODCB Wilayah Sulawesi Utara dan Gorontalo</h2>';
+        };
+        title.addTo(map);
+        var abstract = new L.Control({'position':'bottomleft'});
+        abstract.onAdd = function (map) {
+            this._div = L.DomUtil.create('div',
+            'leaflet-control abstract');
+            this._div.id = 'abstract'
+
+                abstract.show();
+                return this._div;
+            };
+            abstract.show = function () {
+                this._div.classList.remove("abstract");
+                this._div.classList.add("abstractUncollapsed");
+                this._div.innerHTML = 'Peta ini menampilkan posisi keletakan dari cagar budaya dan objek diduga cagar budaya (ODCB) yang berada di Sulawesi Utara dan Gorontalo berdasarkan Database Cagar Budaya dan Objek Diduga Cagar Budaya yang dikelola oleh Balai Pelestarian Kebudayaan Wilayah XVII Sulawesi Utara dan Gorontalo';
+        };
+        abstract.addTo(map);
+        var zoomControl = L.control.zoom({
+            position: 'topleft'
+        }).addTo(map);
+        L.control.locate({locateOptions: {maxZoom: 19}}).addTo(map);
+        var measureControl = new L.Control.Measure({
+            position: 'topleft',
+            primaryLengthUnit: 'meters',
+            secondaryLengthUnit: 'kilometers',
+            primaryAreaUnit: 'sqmeters',
+            secondaryAreaUnit: 'hectares'
+        });
+        measureControl.addTo(map);
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].innerHTML = '';
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].className += ' fas fa-ruler';
+        var bounds_group = new L.featureGroup([]);
+        function setBounds() {
+        }
+        function pop_SearchCBdanODCBSulutgoTerbaru_0(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 5000
+             });
+        }
+
+        function style_SearchCBdanODCBSulutgoTerbaru_0_0() {
+            return {
+                pane: 'pane_SearchCBdanODCBSulutgoTerbaru_0',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(190,207,80,1.0)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_SearchCBdanODCBSulutgoTerbaru_0');
+        map.getPane('pane_SearchCBdanODCBSulutgoTerbaru_0').style.zIndex = 400;
+        map.getPane('pane_SearchCBdanODCBSulutgoTerbaru_0').style['mix-blend-mode'] = 'normal';
+        var layer_SearchCBdanODCBSulutgoTerbaru_0 = new L.geoJson(json_SearchCBdanODCBSulutgoTerbaru_0, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_SearchCBdanODCBSulutgoTerbaru_0',
+            layerName: 'layer_SearchCBdanODCBSulutgoTerbaru_0',
+            pane: 'pane_SearchCBdanODCBSulutgoTerbaru_0',
+            onEachFeature: pop_SearchCBdanODCBSulutgoTerbaru_0,
+            pointToLayer: function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.circleMarker(latlng, style_SearchCBdanODCBSulutgoTerbaru_0_0(feature));
+            },
+        });
+        bounds_group.addLayer(layer_SearchCBdanODCBSulutgoTerbaru_0);
+        map.addLayer(layer_SearchCBdanODCBSulutgoTerbaru_0);
+        map.createPane('pane_OSMStandard_1');
+        map.getPane('pane_OSMStandard_1').style.zIndex = 401;
+        var layer_OSMStandard_1 = L.tileLayer('http://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            pane: 'pane_OSMStandard_1',
+            opacity: 1.0,
+            attribution: '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors, CC-BY-SA</a>',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 19
+        });
+        layer_OSMStandard_1;
+        map.addLayer(layer_OSMStandard_1);
+        map.createPane('pane_GoogleSatellite_2');
+        map.getPane('pane_GoogleSatellite_2').style.zIndex = 402;
+        var layer_GoogleSatellite_2 = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+            pane: 'pane_GoogleSatellite_2',
+            opacity: 1.0,
+            attribution: '<a href="https://www.google.at/permissions/geoguidelines/attr-guide.html">Map data ©2015 Google</a>',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 20
+        });
+        layer_GoogleSatellite_2;
+        map.addLayer(layer_GoogleSatellite_2);
+        function pop_AdministrasiKabupatenKotaSulawesiUtara_3(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['fid'] !== null ? autolinker.link(String(feature.properties['fid']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['OBJECTID'] !== null ? autolinker.link(String(feature.properties['OBJECTID']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NAMOBJ'] !== null ? autolinker.link(String(feature.properties['NAMOBJ']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['FCODE'] !== null ? autolinker.link(String(feature.properties['FCODE']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['REMARK'] !== null ? autolinker.link(String(feature.properties['REMARK']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['METADATA'] !== null ? autolinker.link(String(feature.properties['METADATA']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SRS_ID'] !== null ? autolinker.link(String(feature.properties['SRS_ID']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['KDBBPS'] !== null ? autolinker.link(String(feature.properties['KDBBPS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['KDCBPS'] !== null ? autolinker.link(String(feature.properties['KDCBPS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['KDCPUM'] !== null ? autolinker.link(String(feature.properties['KDCPUM']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['KDEBPS'] !== null ? autolinker.link(String(feature.properties['KDEBPS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['KDEPUM'] !== null ? autolinker.link(String(feature.properties['KDEPUM']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['KDPBPS'] !== null ? autolinker.link(String(feature.properties['KDPBPS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['KDPKAB'] !== null ? autolinker.link(String(feature.properties['KDPKAB']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['KDPPUM'] !== null ? autolinker.link(String(feature.properties['KDPPUM']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LUASWH'] !== null ? autolinker.link(String(feature.properties['LUASWH']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['TIPADM'] !== null ? autolinker.link(String(feature.properties['TIPADM']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['WADMKC'] !== null ? autolinker.link(String(feature.properties['WADMKC']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['WADMKD'] !== null ? autolinker.link(String(feature.properties['WADMKD']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['WADMKK'] !== null ? autolinker.link(String(feature.properties['WADMKK']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['WADMPR'] !== null ? autolinker.link(String(feature.properties['WADMPR']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['WIADKC'] !== null ? autolinker.link(String(feature.properties['WIADKC']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['WIADKK'] !== null ? autolinker.link(String(feature.properties['WIADKK']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['WIADPR'] !== null ? autolinker.link(String(feature.properties['WIADPR']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['WIADKD'] !== null ? autolinker.link(String(feature.properties['WIADKD']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['UUPP'] !== null ? autolinker.link(String(feature.properties['UUPP']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LUAS'] !== null ? autolinker.link(String(feature.properties['LUAS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['layer'] !== null ? autolinker.link(String(feature.properties['layer']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['path'] !== null ? autolinker.link(String(feature.properties['path']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 5000 });
+        }
+
+        function style_AdministrasiKabupatenKotaSulawesiUtara_3_0(feature) {
+            switch(String(feature.properties['WADMKK'])) {
+                case 'Bolaang Mongondow':
+                    return {
+                pane: 'pane_AdministrasiKabupatenKotaSulawesiUtara_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(67,67,234,0.45098039215686275)',
+                interactive: false,
+            }
+                    break;
+                case 'Bolaang Mongondow Selatan':
+                    return {
+                pane: 'pane_AdministrasiKabupatenKotaSulawesiUtara_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(211,211,74,0.45098039215686275)',
+                interactive: false,
+            }
+                    break;
+                case 'Bolaang Mongondow Timur':
+                    return {
+                pane: 'pane_AdministrasiKabupatenKotaSulawesiUtara_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(227,165,57,0.45098039215686275)',
+                interactive: false,
+            }
+                    break;
+                case 'Bolaang Mongondow Utara':
+                    return {
+                pane: 'pane_AdministrasiKabupatenKotaSulawesiUtara_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(202,23,44,0.45098039215686275)',
+                interactive: false,
+            }
+                    break;
+                case 'Kepulauan Sangihe':
+                    return {
+                pane: 'pane_AdministrasiKabupatenKotaSulawesiUtara_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(188,84,222,0.45098039215686275)',
+                interactive: false,
+            }
+                    break;
+                case 'Kepulauan Siau Tagulandang Biaro':
+                    return {
+                pane: 'pane_AdministrasiKabupatenKotaSulawesiUtara_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(65,205,186,0.45098039215686275)',
+                interactive: false,
+            }
+                    break;
+                case 'Kepulauan Talaud':
+                    return {
+                pane: 'pane_AdministrasiKabupatenKotaSulawesiUtara_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(146,236,116,0.45098039215686275)',
+                interactive: false,
+            }
+                    break;
+                case 'Kota Bitung':
+                    return {
+                pane: 'pane_AdministrasiKabupatenKotaSulawesiUtara_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(123,197,221,0.45098039215686275)',
+                interactive: false,
+            }
+                    break;
+                case 'Kota Kotamobagu':
+                    return {
+                pane: 'pane_AdministrasiKabupatenKotaSulawesiUtara_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(159,128,214,0.45098039215686275)',
+                interactive: false,
+            }
+                    break;
+                case 'Kota Manado':
+                    return {
+                pane: 'pane_AdministrasiKabupatenKotaSulawesiUtara_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(13,86,202,0.45098039215686275)',
+                interactive: false,
+            }
+                    break;
+                case 'Kota Tomohon':
+                    return {
+                pane: 'pane_AdministrasiKabupatenKotaSulawesiUtara_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(150,215,39,0.45098039215686275)',
+                interactive: false,
+            }
+                    break;
+                case 'Minahasa':
+                    return {
+                pane: 'pane_AdministrasiKabupatenKotaSulawesiUtara_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(234,50,210,0.45098039215686275)',
+                interactive: false,
+            }
+                    break;
+                case 'Minahasa Selatan':
+                    return {
+                pane: 'pane_AdministrasiKabupatenKotaSulawesiUtara_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(220,125,93,0.45098039215686275)',
+                interactive: false,
+            }
+                    break;
+                case 'Minahasa Tenggara':
+                    return {
+                pane: 'pane_AdministrasiKabupatenKotaSulawesiUtara_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(119,232,132,0.45098039215686275)',
+                interactive: false,
+            }
+                    break;
+                case 'Minahasa Utara':
+                    return {
+                pane: 'pane_AdministrasiKabupatenKotaSulawesiUtara_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(221,88,155,0.45098039215686275)',
+                interactive: false,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_AdministrasiKabupatenKotaSulawesiUtara_3');
+        map.getPane('pane_AdministrasiKabupatenKotaSulawesiUtara_3').style.zIndex = 403;
+        map.getPane('pane_AdministrasiKabupatenKotaSulawesiUtara_3').style['mix-blend-mode'] = 'normal';
+        var layer_AdministrasiKabupatenKotaSulawesiUtara_3 = new L.geoJson(json_AdministrasiKabupatenKotaSulawesiUtara_3, {
+            attribution: '',
+            interactive: false,
+            dataVar: 'json_AdministrasiKabupatenKotaSulawesiUtara_3',
+            layerName: 'layer_AdministrasiKabupatenKotaSulawesiUtara_3',
+            pane: 'pane_AdministrasiKabupatenKotaSulawesiUtara_3',
+            onEachFeature: pop_AdministrasiKabupatenKotaSulawesiUtara_3,
+            style: style_AdministrasiKabupatenKotaSulawesiUtara_3_0,
+        });
+        bounds_group.addLayer(layer_AdministrasiKabupatenKotaSulawesiUtara_3);
+        map.addLayer(layer_AdministrasiKabupatenKotaSulawesiUtara_3);
+        function pop_TitikLokasiCagarBudayadanODCBSulawesiUtara_4(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td class="visible-with-data" id="Nama Objek" colspan="2"><strong>Nama Objek</strong><br />' + (feature.properties['Nama Objek'] !== null ? autolinker.link(String(feature.properties['Nama Objek']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="Keterangan Status" colspan="2"><strong>Keterangan Status</strong><br />' + (feature.properties['Keterangan Status'] !== null ? autolinker.link(String(feature.properties['Keterangan Status']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="Kelurahan/Desa" colspan="2"><strong>Kelurahan/Desa</strong><br />' + (feature.properties['Kelurahan/Desa'] !== null ? autolinker.link(String(feature.properties['Kelurahan/Desa']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="Kecamatan" colspan="2"><strong>Kecamatan</strong><br />' + (feature.properties['Kecamatan'] !== null ? autolinker.link(String(feature.properties['Kecamatan']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="Kabupaten/Kota" colspan="2"><strong>Kabupaten/Kota</strong><br />' + (feature.properties['Kabupaten/Kota'] !== null ? autolinker.link(String(feature.properties['Kabupaten/Kota']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="Jenis dan Jumlah Objek" colspan="2"><strong>Jenis dan Jumlah Objek</strong><br />' + (feature.properties['Jenis dan Jumlah Objek'] !== null ? autolinker.link(String(feature.properties['Jenis dan Jumlah Objek']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="Keterangan Objek" colspan="2"><strong>Keterangan Objek</strong><br />' + (feature.properties['Keterangan Objek'] !== null ? autolinker.link(String(feature.properties['Keterangan Objek']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="Periode" colspan="2"><strong>Periode</strong><br />' + (feature.properties['Periode'] !== null ? autolinker.link(String(feature.properties['Periode']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="Status Penetapan" colspan="2"><strong>Status Penetapan</strong><br />' + (feature.properties['Status Penetapan'] !== null ? autolinker.link(String(feature.properties['Status Penetapan']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="Status Kepemilikan" colspan="2"><strong>Status Kepemilikan</strong><br />' + (feature.properties['Status Kepemilikan'] !== null ? autolinker.link(String(feature.properties['Status Kepemilikan']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="Juru Pelihara" colspan="2"><strong>Juru Pelihara</strong><br />' + (feature.properties['Juru Pelihara'] !== null ? autolinker.link(String(feature.properties['Juru Pelihara']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 500 });
+        }
+
+        function style_TitikLokasiCagarBudayadanODCBSulawesiUtara_4_0(feature) {
+            switch(String(feature.properties['Keterangan Status'])) {
+                case 'Cagar Budaya':
+                    return {
+                pane: 'pane_TitikLokasiCagarBudayadanODCBSulawesiUtara_4',
+                radius: 8.4,
+                opacity: 1,
+                color: 'rgba(0,0,0,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(0,194,252,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'CB Nasional':
+                    return {
+                pane: 'pane_TitikLokasiCagarBudayadanODCBSulawesiUtara_4',
+                radius: 8.4,
+                opacity: 1,
+                color: 'rgba(0,0,0,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(252,2,0,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'ODCB':
+                    return {
+                pane: 'pane_TitikLokasiCagarBudayadanODCBSulawesiUtara_4',
+                radius: 8.4,
+                opacity: 1,
+                color: 'rgba(0,0,0,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(241,252,0,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_TitikLokasiCagarBudayadanODCBSulawesiUtara_4');
+        map.getPane('pane_TitikLokasiCagarBudayadanODCBSulawesiUtara_4').style.zIndex = 404;
+        map.getPane('pane_TitikLokasiCagarBudayadanODCBSulawesiUtara_4').style['mix-blend-mode'] = 'normal';
+        var layer_TitikLokasiCagarBudayadanODCBSulawesiUtara_4 = new L.geoJson(json_TitikLokasiCagarBudayadanODCBSulawesiUtara_4, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_TitikLokasiCagarBudayadanODCBSulawesiUtara_4',
+            layerName: 'layer_TitikLokasiCagarBudayadanODCBSulawesiUtara_4',
+            pane: 'pane_TitikLokasiCagarBudayadanODCBSulawesiUtara_4',
+            onEachFeature: pop_TitikLokasiCagarBudayadanODCBSulawesiUtara_4,
+            pointToLayer: function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.circleMarker(latlng, style_TitikLokasiCagarBudayadanODCBSulawesiUtara_4_0(feature));
+            },
+        });
+        bounds_group.addLayer(layer_TitikLokasiCagarBudayadanODCBSulawesiUtara_4);
+        map.addLayer(layer_TitikLokasiCagarBudayadanODCBSulawesiUtara_4);
+        function pop_ProvinsiGorontalo_5(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['fid'] !== null ? autolinker.link(String(feature.properties['fid']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['OBJECTID'] !== null ? autolinker.link(String(feature.properties['OBJECTID']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['NAMOBJ'] !== null ? autolinker.link(String(feature.properties['NAMOBJ']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['FCODE'] !== null ? autolinker.link(String(feature.properties['FCODE']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['REMARK'] !== null ? autolinker.link(String(feature.properties['REMARK']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['METADATA'] !== null ? autolinker.link(String(feature.properties['METADATA']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['SRS_ID'] !== null ? autolinker.link(String(feature.properties['SRS_ID']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['KDBBPS'] !== null ? autolinker.link(String(feature.properties['KDBBPS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['KDCBPS'] !== null ? autolinker.link(String(feature.properties['KDCBPS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['KDCPUM'] !== null ? autolinker.link(String(feature.properties['KDCPUM']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['KDEBPS'] !== null ? autolinker.link(String(feature.properties['KDEBPS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['KDEPUM'] !== null ? autolinker.link(String(feature.properties['KDEPUM']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['KDPBPS'] !== null ? autolinker.link(String(feature.properties['KDPBPS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['KDPKAB'] !== null ? autolinker.link(String(feature.properties['KDPKAB']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['KDPPUM'] !== null ? autolinker.link(String(feature.properties['KDPPUM']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LUASWH'] !== null ? autolinker.link(String(feature.properties['LUASWH']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['TIPADM'] !== null ? autolinker.link(String(feature.properties['TIPADM']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['WADMKC'] !== null ? autolinker.link(String(feature.properties['WADMKC']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['WADMKD'] !== null ? autolinker.link(String(feature.properties['WADMKD']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['WADMKK'] !== null ? autolinker.link(String(feature.properties['WADMKK']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['WADMPR'] !== null ? autolinker.link(String(feature.properties['WADMPR']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['WIADKC'] !== null ? autolinker.link(String(feature.properties['WIADKC']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['WIADKK'] !== null ? autolinker.link(String(feature.properties['WIADKK']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['WIADPR'] !== null ? autolinker.link(String(feature.properties['WIADPR']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['WIADKD'] !== null ? autolinker.link(String(feature.properties['WIADKD']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['UUPP'] !== null ? autolinker.link(String(feature.properties['UUPP']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['LUAS'] !== null ? autolinker.link(String(feature.properties['LUAS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['layer'] !== null ? autolinker.link(String(feature.properties['layer']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['path'] !== null ? autolinker.link(String(feature.properties['path']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 5000 });
+        }
+
+        function style_ProvinsiGorontalo_5_0(feature) {
+            switch(String(feature.properties['WADMKK'])) {
+                case 'Boalemo':
+                    return {
+                pane: 'pane_ProvinsiGorontalo_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(128,183,223,0.45098039215686275)',
+                interactive: false,
+            }
+                    break;
+                case 'Bone Bolango':
+                    return {
+                pane: 'pane_ProvinsiGorontalo_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(36,217,138,0.45098039215686275)',
+                interactive: false,
+            }
+                    break;
+                case 'Gorontalo':
+                    return {
+                pane: 'pane_ProvinsiGorontalo_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(224,194,26,0.45098039215686275)',
+                interactive: false,
+            }
+                    break;
+                case 'Gorontalo Utara':
+                    return {
+                pane: 'pane_ProvinsiGorontalo_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(213,96,98,0.45098039215686275)',
+                interactive: false,
+            }
+                    break;
+                case 'Kota Gorontalo':
+                    return {
+                pane: 'pane_ProvinsiGorontalo_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(134,102,216,0.45098039215686275)',
+                interactive: false,
+            }
+                    break;
+                case 'Pohuwato':
+                    return {
+                pane: 'pane_ProvinsiGorontalo_5',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(201,25,178,0.45098039215686275)',
+                interactive: false,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_ProvinsiGorontalo_5');
+        map.getPane('pane_ProvinsiGorontalo_5').style.zIndex = 405;
+        map.getPane('pane_ProvinsiGorontalo_5').style['mix-blend-mode'] = 'normal';
+        var layer_ProvinsiGorontalo_5 = new L.geoJson(json_ProvinsiGorontalo_5, {
+            attribution: '',
+            interactive: false,
+            dataVar: 'json_ProvinsiGorontalo_5',
+            layerName: 'layer_ProvinsiGorontalo_5',
+            pane: 'pane_ProvinsiGorontalo_5',
+            onEachFeature: pop_ProvinsiGorontalo_5,
+            style: style_ProvinsiGorontalo_5_0,
+        });
+        bounds_group.addLayer(layer_ProvinsiGorontalo_5);
+        map.addLayer(layer_ProvinsiGorontalo_5);
+        function pop_TitikLokasiCagarBudayadanODCBGorontalo_6(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td class="visible-with-data" id="Nama Objek" colspan="2"><strong>Nama Objek</strong><br />' + (feature.properties['Nama Objek'] !== null ? autolinker.link(String(feature.properties['Nama Objek']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="Keterangan Status" colspan="2"><strong>Keterangan Status</strong><br />' + (feature.properties['Keterangan Status'] !== null ? autolinker.link(String(feature.properties['Keterangan Status']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="Kelurahan/Desa" colspan="2"><strong>Kelurahan/Desa</strong><br />' + (feature.properties['Kelurahan/Desa'] !== null ? autolinker.link(String(feature.properties['Kelurahan/Desa']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="Kecamatan" colspan="2"><strong>Kecamatan</strong><br />' + (feature.properties['Kecamatan'] !== null ? autolinker.link(String(feature.properties['Kecamatan']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="Kabupaten/Kota" colspan="2"><strong>Kabupaten/Kota</strong><br />' + (feature.properties['Kabupaten/Kota'] !== null ? autolinker.link(String(feature.properties['Kabupaten/Kota']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="Jenis dan Jumlah Objek" colspan="2"><strong>Jenis dan Jumlah Objek</strong><br />' + (feature.properties['Jenis dan Jumlah Objek'] !== null ? autolinker.link(String(feature.properties['Jenis dan Jumlah Objek']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="Keterangan Objek" colspan="2"><strong>Keterangan Objek</strong><br />' + (feature.properties['Keterangan Objek'] !== null ? autolinker.link(String(feature.properties['Keterangan Objek']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="Periode" colspan="2"><strong>Periode</strong><br />' + (feature.properties['Periode'] !== null ? autolinker.link(String(feature.properties['Periode']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="Status Penetapan" colspan="2"><strong>Status Penetapan</strong><br />' + (feature.properties['Status Penetapan'] !== null ? autolinker.link(String(feature.properties['Status Penetapan']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="Status Kepemilikan" colspan="2"><strong>Status Kepemilikan</strong><br />' + (feature.properties['Status Kepemilikan'] !== null ? autolinker.link(String(feature.properties['Status Kepemilikan']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="Juru Pelihara" colspan="2"><strong>Juru Pelihara</strong><br />' + (feature.properties['Juru Pelihara'] !== null ? autolinker.link(String(feature.properties['Juru Pelihara']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 5000 });
+        }
+
+        function style_TitikLokasiCagarBudayadanODCBGorontalo_6_0(feature) {
+            switch(String(feature.properties['Keterangan Status'])) {
+                case 'Cagar Budaya':
+                    return {
+                pane: 'pane_TitikLokasiCagarBudayadanODCBGorontalo_6',
+                radius: 8.4,
+                opacity: 1,
+                color: 'rgba(0,0,0,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(0,194,252,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'CB Nasional':
+                    return {
+                pane: 'pane_TitikLokasiCagarBudayadanODCBGorontalo_6',
+                radius: 8.4,
+                opacity: 1,
+                color: 'rgba(0,0,0,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(252,2,0,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'ODCB':
+                    return {
+                pane: 'pane_TitikLokasiCagarBudayadanODCBGorontalo_6',
+                radius: 8.4,
+                opacity: 1,
+                color: 'rgba(0,0,0,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(241,252,0,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_TitikLokasiCagarBudayadanODCBGorontalo_6');
+        map.getPane('pane_TitikLokasiCagarBudayadanODCBGorontalo_6').style.zIndex = 406;
+        map.getPane('pane_TitikLokasiCagarBudayadanODCBGorontalo_6').style['mix-blend-mode'] = 'normal';
+        var layer_TitikLokasiCagarBudayadanODCBGorontalo_6 = new L.geoJson(json_TitikLokasiCagarBudayadanODCBGorontalo_6, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_TitikLokasiCagarBudayadanODCBGorontalo_6',
+            layerName: 'layer_TitikLokasiCagarBudayadanODCBGorontalo_6',
+            pane: 'pane_TitikLokasiCagarBudayadanODCBGorontalo_6',
+            onEachFeature: pop_TitikLokasiCagarBudayadanODCBGorontalo_6,
+            pointToLayer: function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.circleMarker(latlng, style_TitikLokasiCagarBudayadanODCBGorontalo_6_0(feature));
+            },
+        });
+        bounds_group.addLayer(layer_TitikLokasiCagarBudayadanODCBGorontalo_6);
+        map.addLayer(layer_TitikLokasiCagarBudayadanODCBGorontalo_6);
+        const url = {"Nominatim OSM": "https://nominatim.openstreetmap.org/search?format=geojson&addressdetails=1&",
+        "France BAN": "https://api-adresse.data.gouv.fr/search/?"}
+        var photonControl = L.control.photon({
+            url: url["Nominatim OSM"],
+            feedbackLabel: '',
+            position: 'topleft',
+            includePosition: true,
+            initial: true,
+            // resultsHandler: myHandler,
+        }).addTo(map);
+        photonControl._container.childNodes[0].style.borderRadius="10px"
+        // Create a variable to store the geoJSON data
+        var x = null;
+        // Create a variable to store the marker
+        var marker = null;
+        // Add an event listener to the Photon control to create a marker from the returned geoJSON data
+        var z = null;
+        photonControl.on('selected', function(e) {
+            console.log(photonControl.search.resultsContainer);
+            if (x != null) {
+                map.removeLayer(obj3.marker);
+                map.removeLayer(x);
+            }
+            obj2.gcd = e.choice;
+            x = L.geoJSON(obj2.gcd).addTo(map);
+            var label = typeof obj2.gcd.properties.label === 'undefined' ? obj2.gcd.properties.display_name : obj2.gcd.properties.label;
+            obj3.marker = L.marker(x.getLayers()[0].getLatLng()).bindPopup(label).addTo(map);
+            map.setView(x.getLayers()[0].getLatLng(), 17);
+            z = typeof e.choice.properties.label === 'undefined'? e.choice.properties.display_name : e.choice.properties.label;
+            console.log(e);
+            e.target.input.value = z;
+        });
+        var search = document.getElementsByClassName("leaflet-photon leaflet-control")[0];
+        search.classList.add("leaflet-control-search")
+        search.style.display = "flex";
+        search.style.backgroundColor="rgba(255,255,255,0.5)" 
+
+        // Create the new button element
+        var button = document.createElement("div");
+        button.id = "gcd-button-control";
+        button.className = "gcd-gl-btn fa fa-search search-button";
+
+        // Insert the button at the beginning of the search control
+        search.insertBefore(button, search.firstChild);
+        last = search.lastChild;
+        last.style.display = "none";
+        button.addEventListener("click", function (e) {
+            if (last.style.display === "none") {
+                last.style.display = "block";
+            } else {
+                last.style.display = "none";
+            }
+        });
+        var overlaysTree = [
+        {label: '<b>Wilayah Gorontalo</b>',  selectAllCheckbox: true, children: [
+            {label: 'Titik Lokasi Cagar Budaya dan ODCB Gorontalo<br /><table><tr><td style="text-align: center;"><img src="legend/TitikLokasiCagarBudayadanODCBGorontalo_6_CagarBudaya0.png" /></td><td>Cagar Budaya</td></tr><tr><td style="text-align: center;"><img src="legend/TitikLokasiCagarBudayadanODCBGorontalo_6_CBNasional1.png" /></td><td>CB Nasional</td></tr><tr><td style="text-align: center;"><img src="legend/TitikLokasiCagarBudayadanODCBGorontalo_6_ODCB2.png" /></td><td>ODCB</td></tr></table>', layer: layer_TitikLokasiCagarBudayadanODCBGorontalo_6},
+            {label: 'Provinsi Gorontalo<br /><table><tr><td style="text-align: center;"><img src="legend/ProvinsiGorontalo_5_Boalemo0.png" /></td><td>Boalemo</td></tr><tr><td style="text-align: center;"><img src="legend/ProvinsiGorontalo_5_BoneBolango1.png" /></td><td>Bone Bolango</td></tr><tr><td style="text-align: center;"><img src="legend/ProvinsiGorontalo_5_Gorontalo2.png" /></td><td>Gorontalo</td></tr><tr><td style="text-align: center;"><img src="legend/ProvinsiGorontalo_5_GorontaloUtara3.png" /></td><td>Gorontalo Utara</td></tr><tr><td style="text-align: center;"><img src="legend/ProvinsiGorontalo_5_KotaGorontalo4.png" /></td><td>Kota Gorontalo</td></tr><tr><td style="text-align: center;"><img src="legend/ProvinsiGorontalo_5_Pohuwato5.png" /></td><td>Pohuwato</td></tr></table>', layer: layer_ProvinsiGorontalo_5},]},
+        {label: '<b>Wilayah Sulawesi Utara</b>',  selectAllCheckbox: true, children: [
+            {label: 'Titik Lokasi Cagar Budaya dan ODCB Sulawesi Utara<br /><table><tr><td style="text-align: center;"><img src="legend/TitikLokasiCagarBudayadanODCBSulawesiUtara_4_CagarBudaya0.png" /></td><td>Cagar Budaya</td></tr><tr><td style="text-align: center;"><img src="legend/TitikLokasiCagarBudayadanODCBSulawesiUtara_4_CBNasional1.png" /></td><td>CB Nasional</td></tr><tr><td style="text-align: center;"><img src="legend/TitikLokasiCagarBudayadanODCBSulawesiUtara_4_ODCB2.png" /></td><td>ODCB</td></tr></table>', layer: layer_TitikLokasiCagarBudayadanODCBSulawesiUtara_4},
+            {label: 'Administrasi Kabupaten/Kota Sulawesi Utara<br /><table><tr><td style="text-align: center;"><img src="legend/AdministrasiKabupatenKotaSulawesiUtara_3_BolaangMongondow0.png" /></td><td>Bolaang Mongondow</td></tr><tr><td style="text-align: center;"><img src="legend/AdministrasiKabupatenKotaSulawesiUtara_3_BolaangMongondowSelatan1.png" /></td><td>Bolaang Mongondow Selatan</td></tr><tr><td style="text-align: center;"><img src="legend/AdministrasiKabupatenKotaSulawesiUtara_3_BolaangMongondowTimur2.png" /></td><td>Bolaang Mongondow Timur</td></tr><tr><td style="text-align: center;"><img src="legend/AdministrasiKabupatenKotaSulawesiUtara_3_BolaangMongondowUtara3.png" /></td><td>Bolaang Mongondow Utara</td></tr><tr><td style="text-align: center;"><img src="legend/AdministrasiKabupatenKotaSulawesiUtara_3_KepulauanSangihe4.png" /></td><td>Kepulauan Sangihe</td></tr><tr><td style="text-align: center;"><img src="legend/AdministrasiKabupatenKotaSulawesiUtara_3_KepulauanSiauTagulandangBiaro5.png" /></td><td>Kepulauan Siau Tagulandang Biaro</td></tr><tr><td style="text-align: center;"><img src="legend/AdministrasiKabupatenKotaSulawesiUtara_3_KepulauanTalaud6.png" /></td><td>Kepulauan Talaud</td></tr><tr><td style="text-align: center;"><img src="legend/AdministrasiKabupatenKotaSulawesiUtara_3_KotaBitung7.png" /></td><td>Kota Bitung</td></tr><tr><td style="text-align: center;"><img src="legend/AdministrasiKabupatenKotaSulawesiUtara_3_KotaKotamobagu8.png" /></td><td>Kota Kotamobagu</td></tr><tr><td style="text-align: center;"><img src="legend/AdministrasiKabupatenKotaSulawesiUtara_3_KotaManado9.png" /></td><td>Kota Manado</td></tr><tr><td style="text-align: center;"><img src="legend/AdministrasiKabupatenKotaSulawesiUtara_3_KotaTomohon10.png" /></td><td>Kota Tomohon</td></tr><tr><td style="text-align: center;"><img src="legend/AdministrasiKabupatenKotaSulawesiUtara_3_Minahasa11.png" /></td><td>Minahasa</td></tr><tr><td style="text-align: center;"><img src="legend/AdministrasiKabupatenKotaSulawesiUtara_3_MinahasaSelatan12.png" /></td><td>Minahasa Selatan</td></tr><tr><td style="text-align: center;"><img src="legend/AdministrasiKabupatenKotaSulawesiUtara_3_MinahasaTenggara13.png" /></td><td>Minahasa Tenggara</td></tr><tr><td style="text-align: center;"><img src="legend/AdministrasiKabupatenKotaSulawesiUtara_3_MinahasaUtara14.png" /></td><td>Minahasa Utara</td></tr></table>', layer: layer_AdministrasiKabupatenKotaSulawesiUtara_3},]},
+            {label: "Google Satellite", layer: layer_GoogleSatellite_2},
+            {label: "OSM Standard", layer: layer_OSMStandard_1},
+            {label: '<img src="legend/SearchCBdanODCBSulutgoTerbaru_0.png" /> Search CB dan ODCB Sulutgo Terbaru', layer: layer_SearchCBdanODCBSulutgoTerbaru_0},]
+        var lay = L.control.layers.tree(null, overlaysTree,{
+            //namedToggle: true,
+            //selectorBack: false,
+            //closedSymbol: '&#8862; &#x1f5c0;',
+            //openedSymbol: '&#8863; &#x1f5c1;',
+            //collapseAll: 'Collapse all',
+            //expandAll: 'Expand all',
+            collapsed: true,
+        });
+        lay.addTo(map);
+        setBounds();
+        var i = 0;
+        layer_AdministrasiKabupatenKotaSulawesiUtara_3.eachLayer(function(layer) {
+            var context = {
+                feature: layer.feature,
+                variables: {}
+            };
+            layer.bindTooltip((layer.feature.properties['WADMKK'] !== null?String('<div style="color: #323232; font-size: 14pt; font-family: \'Open Sans\', sans-serif;">' + layer.feature.properties['WADMKK']) + '</div>':''), {permanent: true, offset: [-0, -16], className: 'css_AdministrasiKabupatenKotaSulawesiUtara_3'});
+            labels.push(layer);
+            totalMarkers += 1;
+              layer.added = true;
+              addLabel(layer, i);
+              i++;
+        });
+        var i = 0;
+        layer_ProvinsiGorontalo_5.eachLayer(function(layer) {
+            var context = {
+                feature: layer.feature,
+                variables: {}
+            };
+            layer.bindTooltip((layer.feature.properties['WADMKK'] !== null?String('<div style="color: #323232; font-size: 14pt; font-family: \'Open Sans\', sans-serif;">' + layer.feature.properties['WADMKK']) + '</div>':''), {permanent: true, offset: [-0, -16], className: 'css_ProvinsiGorontalo_5'});
+            labels.push(layer);
+            totalMarkers += 1;
+              layer.added = true;
+              addLabel(layer, i);
+              i++;
+        });
+        map.addControl(new L.Control.Search({
+            layer: layer_SearchCBdanODCBSulutgoTerbaru_0,
+            initial: false,
+            hideMarkerOnCollapse: true,
+            propertyName: 'Nama Objek'}));
+        if (typeof url === 'undefined') {
+            document.getElementsByClassName('search-button')[0].className += ' fa fa-binoculars';
+        } else {
+            document.getElementsByClassName('search-button')[1].className += ' fa fa-binoculars';
+        }
+        resetLabels([layer_AdministrasiKabupatenKotaSulawesiUtara_3,layer_ProvinsiGorontalo_5]);
+        map.on("zoomend", function(){
+            resetLabels([layer_AdministrasiKabupatenKotaSulawesiUtara_3,layer_ProvinsiGorontalo_5]);
+        });
+        map.on("layeradd", function(){
+            resetLabels([layer_AdministrasiKabupatenKotaSulawesiUtara_3,layer_ProvinsiGorontalo_5]);
+        });
+        map.on("layerremove", function(){
+            resetLabels([layer_AdministrasiKabupatenKotaSulawesiUtara_3,layer_ProvinsiGorontalo_5]);
+        });
+        </script>        
+    </body>
+</html>
